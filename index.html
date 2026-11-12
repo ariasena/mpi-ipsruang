@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Eksplorasi Ruang & Lingkungan</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        },
+                        secondary: '#14b8a6', // Teal
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #f8fafc;
+            color: #334155;
+        }
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Map Grid Styling for Interactive Material */
+        .map-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            gap: 2px;
+            background-color: #cbd5e1;
+            border: 2px solid #94a3b8;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            aspect-ratio: 1 / 1;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        .map-cell {
+            background-color: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+        .map-cell:hover {
+            background-color: #e0e7ff;
+        }
+        .cell-landmark {
+            background-color: #fef08a !important;
+            color: #ca8a04;
+            font-weight: bold;
+            font-size: 1.5rem;
+            cursor: default;
+        }
+        .cell-selected {
+            background-color: #6366f1 !important;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Hide Scrollbar but keep functionality */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- Mobile Header -->
+    <header class="md:hidden bg-white shadow-sm border-b border-slate-200 p-4 flex items-center justify-between z-10 relative">
+        <div class="flex items-center gap-2 text-primary-600 font-bold text-lg">
+            <i class="fa-solid fa-globe-asia"></i> GeoDash
+        </div>
+        <div class="text-xs font-semibold bg-primary-50 text-primary-700 px-3 py-1 rounded-full">
+            IPS Kelas 7
+        </div>
+    </header>
+
+    <!-- Sidebar (Desktop) / Bottom Nav (Mobile) -->
+    <nav class="bg-white border-t md:border-t-0 md:border-r border-slate-200 w-full md:w-64 flex-shrink-0 order-last md:order-first z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] md:shadow-none transition-all">
+        <div class="h-full flex flex-col">
+            <!-- Desktop Logo -->
+            <div class="hidden md:flex p-6 items-center gap-3 border-b border-slate-100">
+                <div class="bg-primary-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-primary-500/30">
+                    <i class="fa-solid fa-globe-asia"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-slate-800 leading-tight">GeoDash</h1>
+                    <p class="text-xs text-slate-500">Modul IPS Interaktif</p>
+                </div>
+            </div>
+
+            <!-- Nav Links -->
+            <div class="flex-grow flex md:flex-col p-2 md:p-4 gap-1 md:gap-2 justify-between md:justify-start overflow-x-auto no-scrollbar">
+                
+                <button onclick="switchTab('peta-konsep')" id="nav-peta-konsep" class="nav-btn active flex-1 md:flex-none flex flex-col md:flex-row items-center gap-1 md:gap-3 p-3 rounded-xl text-primary-600 bg-primary-50 font-semibold transition-colors min-w-[80px]">
+                    <i class="fa-solid fa-sitemap text-lg mb-1 md:mb-0"></i>
+                    <span class="text-[10px] md:text-sm text-center md:text-left">Peta Konsep</span>
+                </button>
+
+                <button onclick="switchTab('ruang-materi')" id="nav-ruang-materi" class="nav-btn flex-1 md:flex-none flex flex-col md:flex-row items-center gap-1 md:gap-3 p-3 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors font-medium min-w-[80px]">
+                    <i class="fa-solid fa-book-open-reader text-lg mb-1 md:mb-0"></i>
+                    <span class="text-[10px] md:text-sm text-center md:text-left">Ruang Materi</span>
+                </button>
+
+                <button onclick="switchTab('literasi')" id="nav-literasi" class="nav-btn flex-1 md:flex-none flex flex-col md:flex-row items-center gap-1 md:gap-3 p-3 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors font-medium min-w-[80px]">
+                    <i class="fa-solid fa-newspaper text-lg mb-1 md:mb-0"></i>
+                    <span class="text-[10px] md:text-sm text-center md:text-left">Pojok Literasi</span>
+                </button>
+
+                <button onclick="switchTab('evaluasi')" id="nav-evaluasi" class="nav-btn flex-1 md:flex-none flex flex-col md:flex-row items-center gap-1 md:gap-3 p-3 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors font-medium min-w-[80px]">
+                    <i class="fa-solid fa-brain text-lg mb-1 md:mb-0"></i>
+                    <span class="text-[10px] md:text-sm text-center md:text-left">Asah Nalar</span>
+                </button>
+
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 h-full overflow-y-auto bg-slate-50 relative p-4 md:p-8 pb-24 md:pb-8">
+        <div class="max-w-4xl mx-auto">
+            
+            <!-- TAB 1: PETA KONSEP -->
+            <div id="tab-peta-konsep" class="tab-content active">
+                <div class="mb-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-2">Peta Konsep</h2>
+                    <p class="text-slate-500">Gambaran umum materi yang akan kita pelajari hari ini.</p>
+                </div>
+                
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center">
+                    <!-- Flowchart sederhana menggunakan Flexbox -->
+                    <div class="bg-primary-600 text-white px-6 py-3 rounded-xl font-bold shadow-md mb-6 relative">
+                        MENJELAJAH RUANG & LINGKUNGAN
+                        <!-- Connecting line down -->
+                        <div class="absolute w-0.5 h-6 bg-slate-300 left-1/2 -translate-x-1/2 -bottom-6"></div>
+                    </div>
+                    
+                    <!-- Horizontal line -->
+                    <div class="w-2/3 h-0.5 bg-slate-300 relative mb-6">
+                        <!-- Connector down left -->
+                        <div class="absolute w-0.5 h-6 bg-slate-300 left-0 top-0"></div>
+                        <!-- Connector down right -->
+                        <div class="absolute w-0.5 h-6 bg-slate-300 right-0 top-0"></div>
+                    </div>
+
+                    <div class="flex w-full justify-center gap-4 md:gap-12 lg:gap-32">
+                        <!-- Branch 1 -->
+                        <div class="flex flex-col items-center w-1/2 max-w-[200px]">
+                            <div class="bg-teal-500 text-white px-4 py-2 w-full text-center rounded-lg font-semibold shadow-sm mb-4 relative z-10 text-sm md:text-base">
+                                Lokasi
+                                <div class="absolute w-0.5 h-4 bg-slate-300 left-1/2 -translate-x-1/2 -bottom-4"></div>
+                            </div>
+                            <div class="flex gap-2 w-full pt-4 relative">
+                                <div class="absolute w-full h-0.5 bg-slate-300 top-0 left-0"></div>
+                                <div class="bg-teal-50 text-teal-700 border border-teal-200 px-2 py-2 text-center rounded text-xs md:text-sm font-medium w-1/2">Absolut</div>
+                                <div class="bg-teal-50 text-teal-700 border border-teal-200 px-2 py-2 text-center rounded text-xs md:text-sm font-medium w-1/2">Relatif</div>
+                            </div>
+                        </div>
+
+                        <!-- Branch 2 -->
+                        <div class="flex flex-col items-center w-1/2 max-w-[200px]">
+                            <div class="bg-amber-500 text-white px-4 py-2 w-full text-center rounded-lg font-semibold shadow-sm mb-4 relative z-10 text-sm md:text-base">
+                                Kondisi Alam
+                                <div class="absolute w-0.5 h-4 bg-slate-300 left-1/2 -translate-x-1/2 -bottom-4"></div>
+                            </div>
+                            <div class="flex gap-2 w-full pt-4 relative">
+                                <div class="absolute w-full h-0.5 bg-slate-300 top-0 left-0"></div>
+                                <div class="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-2 text-center rounded text-xs md:text-sm font-medium w-1/2">Cuaca</div>
+                                <div class="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-2 text-center rounded text-xs md:text-sm font-medium w-1/2">Iklim</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-12 text-center">
+                        <button onclick="switchTab('ruang-materi')" class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2.5 rounded-full font-semibold transition-all shadow-md hover:shadow-lg">
+                            Mulai Belajar <i class="fa-solid fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: RUANG MATERI -->
+            <div id="tab-ruang-materi" class="tab-content">
+                <div class="mb-6">
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-2">Ruang Materi</h2>
+                    <p class="text-slate-500">Eksplorasi interaktif tentang lokasi dan cuaca.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <!-- Modul Lokasi & Kalkulator/Simulasi -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-8 h-8 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center">
+                                <i class="fa-solid fa-location-dot"></i>
+                            </div>
+                            <h3 class="font-bold text-lg">Simulasi Lokasi</h3>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-4 leading-relaxed">
+                            <strong>Lokasi Absolut:</strong> Titik pasti pada sistem koordinat (contoh: Lintang/Bujur atau grid X,Y).<br>
+                            <strong>Lokasi Relatif:</strong> Letak berdasarkan objek lain di sekitarnya.
+                        </p>
+                        
+                        <!-- Interactive Grid -->
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+                            <p class="text-xs font-semibold text-center mb-2 text-slate-500">Klik salah satu kotak (Titik A) di peta grid ini:</p>
+                            <div class="map-grid" id="sim-grid">
+                                <!-- Generated via JS -->
+                            </div>
+                            
+                            <div class="mt-4 p-3 bg-white border border-slate-200 rounded-lg">
+                                <div class="text-xs text-slate-500 font-semibold mb-1">Hasil Analisis:</div>
+                                <div id="sim-absolut" class="text-sm text-slate-800 mb-1"><span class="font-semibold text-primary-600">Lokasi Absolut Titik A:</span> (Pilih grid)</div>
+                                <div id="sim-relatif" class="text-sm text-slate-800"><span class="font-semibold text-amber-600">Lokasi Relatif thd Sekolah:</span> (Pilih grid)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modul Cuaca Iklim & Tabel -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center">
+                                <i class="fa-solid fa-cloud-sun"></i>
+                            </div>
+                            <h3 class="font-bold text-lg">Cuaca vs Iklim</h3>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-4 leading-relaxed">
+                            <strong>Cuaca:</strong> Kondisi udara di wilayah sempit dalam waktu singkat (contoh: Hujan sore ini).<br>
+                            <strong>Iklim:</strong> Pola rata-rata cuaca di wilayah luas dalam jangka panjang (contoh: Iklim Tropis).
+                        </p>
+
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 overflow-hidden">
+                            <p class="text-xs font-semibold mb-2 text-slate-500">Data Rata-rata Iklim Kota X (Tahun 2023)</p>
+                            <div class="overflow-x-auto no-scrollbar">
+                                <table class="w-full text-xs text-left">
+                                    <thead class="bg-slate-200 text-slate-600">
+                                        <tr>
+                                            <th class="p-2 rounded-tl-lg">Indikator</th>
+                                            <th class="p-2">Maret</th>
+                                            <th class="p-2">Agustus</th>
+                                            <th class="p-2 rounded-tr-lg">Desember</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-200 bg-white">
+                                        <tr>
+                                            <td class="p-2 font-medium">Suhu Rata-rata (°C)</td>
+                                            <td class="p-2 text-center text-red-500 font-semibold">28°</td>
+                                            <td class="p-2 text-center text-red-600 font-semibold">31°</td>
+                                            <td class="p-2 text-center text-red-400 font-semibold">26°</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="p-2 font-medium">Curah Hujan (mm)</td>
+                                            <td class="p-2 text-center text-blue-500 font-semibold">150</td>
+                                            <td class="p-2 text-center text-amber-500 font-semibold">20</td>
+                                            <td class="p-2 text-center text-blue-600 font-semibold">280</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-2 italic">*Perhatikan tabel ini untuk menjawab kuis asah nalar nanti.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: LITERASI -->
+            <div id="tab-literasi" class="tab-content">
+                <div class="mb-6">
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-2">Pojok Literasi Kontekstual</h2>
+                    <p class="text-slate-500">Membaca dan memahami dampak nyata kondisi geografis.</p>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden max-w-3xl mx-auto">
+                    <div class="h-40 md:h-56 bg-slate-200 relative overflow-hidden group">
+                        <!-- Placeholder Image Gradient -->
+                        <div class="absolute inset-0 bg-gradient-to-br from-green-400 to-blue-500 opacity-80"></div>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <i class="fa-solid fa-wheat-awn text-6xl text-white/50"></i>
+                        </div>
+                        <div class="absolute bottom-4 left-4 right-4 text-white">
+                            <span class="bg-black/50 text-xs px-2 py-1 rounded backdrop-blur-sm">Studi Kasus Nyata</span>
+                            <h3 class="text-xl font-bold mt-1 shadow-black drop-shadow-md">Fenomena Cuaca dan Nasib Petani Padi</h3>
+                        </div>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <div class="prose prose-sm md:prose-base text-slate-600 max-w-none leading-relaxed">
+                            <p class="mb-4">
+                                Pada tahun 2023, fenomena <strong>El Niño</strong> melanda sebagian besar wilayah Indonesia, termasuk daerah lumbung padi di Jawa Barat. El Niño menyebabkan musim kemarau menjadi jauh lebih panjang dan kering dari biasanya (perubahan pola cuaca jangka panjang/anomali iklim).
+                            </p>
+                            <p class="mb-4">
+                                Pak Yanto, seorang petani lokal, biasanya mengandalkan hujan (sawah tadah hujan) yang biasa turun di bulan Oktober untuk mulai menyemai benih. Namun, hingga bulan November, hujan tak kunjung turun. Lokasi lahan Pak Yanto yang secara relatif berada jauh dari aliran sungai besar membuatnya kesulitan mendapatkan pasokan air irigasi buatan.
+                            </p>
+                            <blockquote class="border-l-4 border-primary-500 pl-4 py-1 italic bg-slate-50 text-slate-700 mb-4 rounded-r-lg">
+                                "Tanah retak-retak, kami terpaksa menunda tanam. Hasil panen tahun ini diprediksi turun drastis jika cuaca terus begini," keluh Pak Yanto.
+                            </blockquote>
+                            <p>
+                                Kasus ini menunjukkan bahwa kondisi iklim dan cuaca ekstrem secara langsung memengaruhi ketahanan pangan dan ekonomi masyarakat di suatu wilayah geografis. Pemahaman akan prediksi cuaca sangat penting bagi petani untuk merencanakan waktu tanam yang tepat (mitigasi).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: EVALUASI -->
+            <div id="tab-evaluasi" class="tab-content">
+                <div class="mb-6">
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-2">Tantangan Asah Nalar</h2>
+                    <p class="text-slate-500">Uji pemahaman literasi dan numerasimu di sini!</p>
+                </div>
+
+                <form id="quiz-form" onsubmit="submitQuiz(event)" class="space-y-6">
+                    
+                    <!-- Soal 1: Literasi / Analisis -->
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="flex items-start gap-3 mb-4">
+                            <span class="bg-primary-100 text-primary-700 font-bold w-7 h-7 rounded flex items-center justify-center shrink-0">1</span>
+                            <p class="font-medium text-slate-800 mt-0.5">
+                                Berdasarkan bacaan di "Pojok Literasi", mengapa lahan Pak Yanto lebih parah terdampak kekeringan dibanding lahan lain? (Konteks Lokasi Relatif)
+                            </p>
+                        </div>
+                        <div class="space-y-2 pl-10">
+                            <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50">
+                                <input type="radio" name="q1" value="A" required class="w-4 h-4 text-primary-600 accent-primary-600">
+                                <span class="text-sm">Karena berada di koordinat lintang utara.</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50">
+                                <input type="radio" name="q1" value="B" class="w-4 h-4 text-primary-600 accent-primary-600">
+                                <span class="text-sm">Karena lokasinya relatif jauh dari aliran sungai besar.</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50">
+                                <input type="radio" name="q1" value="C" class="w-4 h-4 text-primary-600 accent-primary-600">
+                                <span class="text-sm">Karena berada di daerah pegunungan yang sangat tinggi.</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Soal 2: Pemahaman Konsep -->
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="flex items-start gap-3 mb-4">
+                            <span class="bg-primary-100 text-primary-700 font-bold w-7 h-7 rounded flex items-center justify-center shrink-0">2</span>
+                            <p class="font-medium text-slate-800 mt-0.5">
+                                Pernyataan di bawah ini yang menunjukkan contoh kondisi <strong>Cuaca</strong> (bukan Iklim) adalah...
+                            </p>
+                        </div>
+                        <div class="space-y-2 pl-10">
+                            <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50">
+                                <input type="radio" name="q2" value="A" required class="w-4 h-4 text-primary-600 accent-primary-600">
+                                <span class="text-sm">Suhu udara di Bandung pagi ini mencapai 20°C disertai kabut tipis.</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50">
+                                <input type="radio" name="q2" value="B" class="w-4 h-4 text-primary-600 accent-primary-600">
+                                <span class="text-sm">Indonesia memiliki dua musim yaitu kemarau dan penghujan.</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50">
+                                <input type="radio" name="q2" value="C" class="w-4 h-4 text-primary-600 accent-primary-600">
+                                <span class="text-sm">Gurun Sahara sangat kering sepanjang tahun.</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Soal 3: Numerasi dari Tabel -->
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="flex items-start gap-3 mb-4">
+                            <span class="bg-primary-100 text-primary-700 font-bold w-7 h-7 rounded flex items-center justify-center shrink-0">3</span>
+                            <div class="mt-0.5">
+                                <p class="font-medium text-slate-800 mb-2">
+                                    Buka kembali "Ruang Materi" dan perhatikan Tabel Data Rata-rata Iklim Kota X.
+                                </p>
+                                <p class="text-sm text-slate-600">
+                                    Berapakah <strong>selisih</strong> curah hujan (dalam mm) antara bulan yang paling basah (Desember) dengan bulan yang paling kering (Agustus)?
+                                </p>
+                            </div>
+                        </div>
+                        <div class="pl-10">
+                            <div class="flex items-center gap-2 max-w-[200px]">
+                                <input type="number" id="q3-answer" required placeholder="Contoh: 50" class="w-full p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-slate-700">
+                                <span class="text-slate-500 font-medium">mm</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 text-right">
+                        <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform hover:-translate-y-1 w-full md:w-auto">
+                            Kirim Jawaban & Lihat Nilai <i class="fa-solid fa-paper-plane ml-2"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Safe Space for bottom nav on mobile -->
+            <div class="h-10 md:hidden"></div>
+        </div>
+    </main>
+
+    <!-- Modal Ringkasan Nilai -->
+    <div id="result-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl transform scale-95 transition-transform duration-300 text-center" id="result-card">
+            
+            <div id="result-icon" class="text-6xl mb-4"></div>
+            <h3 class="text-2xl font-bold mb-1 text-slate-800">Laporan Akhir</h3>
+            <p class="text-slate-500 text-sm mb-6">Misi Tantangan Nalar Selesai</p>
+            
+            <div class="bg-slate-50 rounded-2xl p-6 mb-6 border border-slate-100">
+                <p class="text-sm text-slate-500 font-semibold mb-1 uppercase tracking-wider">Skor Kamu</p>
+                <div class="text-5xl font-extrabold text-primary-600 mb-2"><span id="final-score">0</span><span class="text-2xl text-slate-400">/100</span></div>
+                <div id="result-feedback" class="text-sm font-medium"></div>
+            </div>
+
+            <button onclick="closeResultModal()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-xl transition duration-200">
+                Kembali ke Dashboard
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // --- Tab Navigation Logic ---
+        function switchTab(tabId) {
+            // Hide all contents
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.remove('active');
+            });
+            // Show target content
+            document.getElementById('tab-' + tabId).classList.add('active');
+
+            // Reset nav button styles
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                // Desktop/Mobile resetting classes
+                btn.classList.remove('text-primary-600', 'bg-primary-50', 'active');
+                btn.classList.add('text-slate-500', 'hover:bg-slate-50', 'hover:text-slate-700');
+            });
+            // Set active nav button
+            const activeBtn = document.getElementById('nav-' + tabId);
+            activeBtn.classList.remove('text-slate-500', 'hover:bg-slate-50', 'hover:text-slate-700');
+            activeBtn.classList.add('text-primary-600', 'bg-primary-50', 'active');
+            
+            // Scroll to top of main content
+            document.querySelector('main').scrollTop = 0;
+        }
+
+        // --- Interactive Map Grid Logic (Materi Lokasi) ---
+        const gridContainer = document.getElementById('sim-grid');
+        const simAbsolut = document.getElementById('sim-absolut');
+        const simRelatif = document.getElementById('sim-relatif');
+        const gridSize = 5;
+        const schoolX = 2; // Center
+        const schoolY = 2;
+
+        function initGrid() {
+            gridContainer.innerHTML = '';
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'map-cell';
+                    
+                    // Add School Landmark
+                    if (x === schoolX && y === schoolY) {
+                        cell.classList.add('cell-landmark');
+                        cell.innerHTML = '<i class="fa-solid fa-school"></i>';
+                        cell.title = "Sekolah (Pusat)";
+                    } else {
+                        // Regular cell
+                        cell.dataset.x = x;
+                        cell.dataset.y = y;
+                        cell.innerHTML = `${x},${y}`;
+                        cell.onclick = () => handleCellClick(x, y, cell);
+                    }
+                    gridContainer.appendChild(cell);
+                }
+            }
+        }
+
+        let previousCell = null;
+        function handleCellClick(x, y, cellElement) {
+            // Reset previous
+            if (previousCell) {
+                previousCell.classList.remove('cell-selected');
+                previousCell.innerHTML = `${previousCell.dataset.x},${previousCell.dataset.y}`;
+            }
+            
+            // Select new
+            cellElement.classList.add('cell-selected');
+            cellElement.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i>';
+            previousCell = cellElement;
+
+            // Update Text
+            // Absolut: based on X,Y coordinate
+            simAbsolut.innerHTML = `<span class="font-semibold text-primary-600">Lokasi Absolut:</span> Grid (X: ${x}, Y: ${y})`;
+            
+            // Relatif: based on School (2,2)
+            let relativeText = [];
+            if (y < schoolY) relativeText.push("Utara");
+            if (y > schoolY) relativeText.push("Selatan");
+            if (x > schoolX) relativeText.push("Timur");
+            if (x < schoolX) relativeText.push("Barat");
+            
+            let direction = relativeText.join(" - ");
+            // Calculate distance block
+            let dist = Math.abs(x - schoolX) + Math.abs(y - schoolY);
+
+            simRelatif.innerHTML = `<span class="font-semibold text-amber-600">Lokasi Relatif:</span> ${dist} blok ke arah ${direction} dari Sekolah.`;
+        }
+
+        // Initialize grid on load
+        initGrid();
+
+        // --- Quiz Logic ---
+        function submitQuiz(e) {
+            e.preventDefault();
+            
+            // Get answers
+            const q1 = document.querySelector('input[name="q1"]:checked').value;
+            const q2 = document.querySelector('input[name="q2"]:checked').value;
+            const q3 = document.getElementById('q3-answer').value;
+
+            // Correct answers
+            const ans1 = "B"; // Jauh dari sungai
+            const ans2 = "A"; // Suhu bandung pagi ini
+            const ans3 = "260"; // Desember (280) - Agustus (20) = 260
+
+            let score = 0;
+            if (q1 === ans1) score += 30;
+            if (q2 === ans2) score += 30;
+            if (q3.trim() === ans3) score += 40; // Soal numerasi poinnya sedikit lebih tinggi
+
+            showResult(score);
+        }
+
+        function showResult(score) {
+            const modal = document.getElementById('result-modal');
+            const card = document.getElementById('result-card');
+            const scoreText = document.getElementById('final-score');
+            const icon = document.getElementById('result-icon');
+            const feedback = document.getElementById('result-feedback');
+
+            // Animate counter
+            let current = 0;
+            const step = Math.max(1, Math.floor(score / 20));
+            const timer = setInterval(() => {
+                current += step;
+                if (current >= score) {
+                    current = score;
+                    clearInterval(timer);
+                    // Show confetti if good score
+                    if (score > 60) fireConfetti();
+                }
+                scoreText.textContent = current;
+            }, 30);
+
+            // Set content based on score
+            if (score === 100) {
+                icon.innerHTML = '<i class="fa-solid fa-crown text-yellow-400 drop-shadow-md"></i>';
+                feedback.innerHTML = '<span class="text-green-500">Sempurna!</span> Nalar geografis & matematis sangat tajam.';
+            } else if (score >= 60) {
+                icon.innerHTML = '<i class="fa-solid fa-thumbs-up text-blue-400 drop-shadow-md"></i>';
+                feedback.innerHTML = '<span class="text-blue-500">Bagus!</span> Pemahamanmu sudah cukup kuat.';
+            } else {
+                icon.innerHTML = '<i class="fa-solid fa-book-open text-slate-400 drop-shadow-md"></i>';
+                feedback.innerHTML = '<span class="text-amber-500">Terus Berlatih.</span> Coba baca lagi ruang materi ya.';
+            }
+
+            // Show modal
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                card.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeResultModal() {
+            const modal = document.getElementById('result-modal');
+            const card = document.getElementById('result-card');
+            
+            modal.classList.add('opacity-0');
+            card.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        // --- Confetti Effect ---
+        function fireConfetti() {
+            var duration = 2000;
+            var end = Date.now() + duration;
+
+            (function frame() {
+                confetti({
+                    particleCount: 5,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: ['#4f46e5', '#14b8a6', '#fef08a']
+                });
+                confetti({
+                    particleCount: 5,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: ['#4f46e5', '#14b8a6', '#fef08a']
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        }
+    </script>
+</body>
+</html>
